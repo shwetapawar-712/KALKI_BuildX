@@ -1,0 +1,330 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/useAuth';
+import { formatAuthError } from '../utils/authErrors';
+
+export default function Signup() {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+
+  const { signup, loginWithGoogle, isFirebaseConfigured } = useAuth();
+  const navigate = useNavigate();
+
+  const validateForm = () => {
+    if (!fullName.trim()) {
+      setError('Please provide your full name.');
+      return false;
+    }
+
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      return false;
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email.trim())) {
+      setError('Please enter a valid email address.');
+      return false;
+    }
+
+    if (!password) {
+      setError('Please enter a password.');
+      return false;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match. Please verify.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isSubmitting || isGoogleSubmitting) return;
+
+    setError('');
+
+    if (!validateForm()) {
+      return;
+    }
+
+    if (!isFirebaseConfigured) {
+      setError(
+        'Firebase configuration missing. Please check your .env file before creating an account.'
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await signup(email.trim(), password, fullName.trim());
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      console.error('Signup error:', err);
+      setError(formatAuthError(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    if (isSubmitting || isGoogleSubmitting) return;
+
+    setError('');
+
+    if (!isFirebaseConfigured) {
+      setError(
+        'Firebase configuration missing. Please check your .env file before signing up.'
+      );
+      return;
+    }
+
+    setIsGoogleSubmitting(true);
+
+    try {
+      await loginWithGoogle();
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      console.error('Google sign-up error:', err);
+      setError(formatAuthError(err));
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="auth-layout">
+      <div className="auth-card">
+        {/* Brand header */}
+        <div className="auth-header">
+          <div className="auth-brand-badge">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+          </div>
+          <h1 className="auth-title">Create your City-Safe Account</h1>
+          <p className="auth-subtitle">
+            Join the civic network for real-time safety and incident response
+          </p>
+        </div>
+
+        {/* Informational alert if .env is unconfigured */}
+        {!isFirebaseConfigured && (
+          <div className="config-notice-banner" role="alert">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <div>
+              <strong>Firebase Setup Required:</strong> Add your credentials in <code>.env</code> to enable live authentication.
+            </div>
+          </div>
+        )}
+
+        {/* Error notification */}
+        {error && (
+          <div className="alert-banner alert-danger" role="alert" id="signup-error-alert">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="auth-form" noValidate>
+          {/* Full Name */}
+          <div className="form-group">
+            <label htmlFor="signup-name" className="form-label">
+              Full Name
+            </label>
+            <div className="input-with-icon">
+              <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              <input
+                id="signup-name"
+                name="fullName"
+                type="text"
+                autoComplete="name"
+                className="form-input"
+                placeholder="e.g. Alex Rivera"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                disabled={isSubmitting || isGoogleSubmitting}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Email */}
+          <div className="form-group">
+            <label htmlFor="signup-email" className="form-label">
+              Email Address
+            </label>
+            <div className="input-with-icon">
+              <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect width="20" height="16" x="2" y="4" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L1 7" />
+              </svg>
+              <input
+                id="signup-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                className="form-input"
+                placeholder="you@citysafe.org"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isSubmitting || isGoogleSubmitting}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Password */}
+          <div className="form-group">
+            <label htmlFor="signup-password" className="form-label">
+              Password
+            </label>
+            <div className="input-with-icon">
+              <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <input
+                id="signup-password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                className="form-input password-input"
+                placeholder="At least 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isSubmitting || isGoogleSubmitting}
+                required
+              />
+              <button
+                type="button"
+                className="toggle-password-btn"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm Password */}
+          <div className="form-group">
+            <label htmlFor="signup-confirm-password" className="form-label">
+              Confirm Password
+            </label>
+            <div className="input-with-icon">
+              <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <input
+                id="signup-confirm-password"
+                name="confirmPassword"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                className="form-input"
+                placeholder="Re-type your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isSubmitting || isGoogleSubmitting}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Submit button */}
+          <button
+            type="submit"
+            className="btn btn-primary btn-block submit-btn"
+            id="signup-submit-btn"
+            disabled={isSubmitting || isGoogleSubmitting}
+          >
+            {isSubmitting ? (
+              <span className="btn-spinner-group">
+                <span className="button-spinner" />
+                <span>Creating Account...</span>
+              </span>
+            ) : (
+              <span>Create Account</span>
+            )}
+          </button>
+        </form>
+
+        {/* OR Divider */}
+        <div className="auth-divider">
+          <span>OR</span>
+        </div>
+
+        {/* Continue with Google */}
+        <button
+          type="button"
+          onClick={handleGoogleSignUp}
+          className="btn btn-google btn-block"
+          id="google-signup-btn"
+          disabled={isSubmitting || isGoogleSubmitting}
+        >
+          {isGoogleSubmitting ? (
+            <span className="btn-spinner-group">
+              <span className="button-spinner" />
+              <span>Connecting with Google...</span>
+            </span>
+          ) : (
+            <>
+              <svg className="google-icon" width="18" height="18" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.29 21.43 7.37 24 12 24z"/>
+                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.29 2.57 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+              </svg>
+              <span>Continue with Google</span>
+            </>
+          )}
+        </button>
+
+        {/* Footer Link */}
+        <div className="auth-footer">
+          <span>Already have an account? </span>
+          <Link to="/login" className="auth-link">
+            Login
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
